@@ -1,0 +1,51 @@
+// APPLY THESE CHANGES TO YOUR EXISTING VegWayMarket.cpp ONLY.
+// Keep all its other market/listing/search functions.
+// Do not include any .cpp file from another file.
+
+// Add these two includes at the top, AFTER pch.h if applicable:
+#include "ProfileSettings.h"
+#include "PayNow.h"
+
+// REPLACE the existing ProfileAction definition; do not append a duplicate.
+void VegWayMarket::ProfileAction(System::Object^ sender, System::EventArgs^)
+{
+    if (IsDesignSurface()) return;
+    if (System::String::IsNullOrWhiteSpace(userId)) return;
+    System::Windows::Forms::ToolStripMenuItem^ item =
+        safe_cast<System::Windows::Forms::ToolStripMenuItem^>(sender);
+    int page = 0;
+    if (item == changeNameItem) page = 1;
+    else if (item == changePasswordItem) page = 2;
+    else if (item == toolStripMenuItem1) page = 3;
+    VegWay::ProfileSettings^ settings = gcnew VegWay::ProfileSettings(userId, page);
+    try {
+        settings->ShowDialog(this);
+        if (!System::String::IsNullOrWhiteSpace(settings->UpdatedName))
+            userName = settings->UpdatedName;
+    }
+    finally { delete settings; }
+    LoadProducts();
+}
+
+// REPLACE the existing BuyClick definition; do not append a duplicate.
+void VegWayMarket::BuyClick(System::Object^ sender, System::EventArgs^)
+{
+    if (IsDesignSurface()) return;
+    if (System::String::IsNullOrWhiteSpace(userId)) {
+        System::Windows::Forms::MessageBox::Show(this, "Please log in before ordering.");
+        return;
+    }
+    System::String^ itemId = safe_cast<System::String^>(
+        safe_cast<System::Windows::Forms::Button^>(sender)->Tag);
+    // The attached PayNow uses LOWERCASE namespace vegway. Preserve it.
+    vegway::PayNow^ checkout = gcnew vegway::PayNow(userId, itemId);
+    try { checkout->ShowDialog(this); }
+    finally { delete checkout; }
+    // Refresh even after cancelling, since other buyers may have changed stock.
+    LoadProducts();
+}
+
+// If you keep your own VegWayMarket.h instead of the supplied patched header:
+// add this ONCE next to toolStripMenuItem1's other properties in InitializeComponent:
+// this->toolStripMenuItem1->Click += gcnew System::EventHandler(this, &VegWayMarket::ProfileAction);
+// Your other three menu items are already wired to ProfileAction.
